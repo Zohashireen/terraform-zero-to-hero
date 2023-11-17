@@ -1,0 +1,69 @@
+pipeline {
+    agent any
+    
+    environment {
+        TF_VAR_example_variable = credentials('terraform-example-variable')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                script {
+                    sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                script {
+                    sh 'terraform plan -var="example_variable=$TF_VAR_example_variable"'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                script {
+                    input "Proceed with Terraform Apply?"
+                    sh 'terraform apply -auto-approve -var="example_variable=$TF_VAR_example_variable"'
+                }
+            }
+        }
+
+        stage('Terraform Show') {
+            steps {
+                script {
+                    sh 'terraform show'
+                }
+            }
+        }
+
+        stage('Store Outputs in Repository') {
+            steps {
+                script {
+                    def outputValue = sh(script: 'terraform output -json', returnStdout: true).trim()
+                    
+                    // Store the output in a file or push it to your repository
+                    writeFile file: 'output.json', text: outputValue
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Terraform deployment successful'
+        }
+
+        failure {
+            echo 'Terraform deployment failed'
+        }
+    }
+}
